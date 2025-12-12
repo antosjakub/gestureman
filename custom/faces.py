@@ -3,10 +3,12 @@ import mediapipe as mp
 from mediapipe import solutions
 from mediapipe.framework.formats import landmark_pb2
 import numpy as np
+from collections import deque
 
 from wayland_automation.mouse_controller import Mouse
 
 mouse = Mouse()
+mouse_pos = deque(maxlen=5)
 
 # Download the face landmarker model first:
 # https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
@@ -109,10 +111,68 @@ with FaceLandmarker.create_from_options(options) as landmarker:
             # # list, with the num elements equal to num of points on the face:
             # l2 = detection_result.face_landmarks[0]
             # print("2", type(l2), len(l2) )
-            pnt = 0 # just above the mouth
-            landmark = detection_result.face_landmarks[0][pnt]
-            #print("(x,y)", landmark.x, landmark.y)
-            mouse.click(int(2880*landmark.x), int(1920*landmark.y))
+
+            nose = 4
+            lch, rch = 50, 280
+
+            chin = 200
+            le, re = 468, 473
+
+            landmark = detection_result.face_landmarks[0][nose]
+            nose_x, nose_y = landmark.x, landmark.y
+            landmark = detection_result.face_landmarks[0][lch]
+            lch_x, lch_y = landmark.x, landmark.y
+            landmark = detection_result.face_landmarks[0][rch]
+            rch_x, rch_y = landmark.x, landmark.y
+
+            landmark = detection_result.face_landmarks[0][chin]
+            ch_x, ch_y = landmark.x, landmark.y
+            landmark = detection_result.face_landmarks[0][le]
+            le_x, le_y = landmark.x, landmark.y
+            landmark = detection_result.face_landmarks[0][re]
+            re_x, re_y = landmark.x, landmark.y
+
+            w = rch_x - lch_x
+            nose_x_offset = nose_x - lch_x
+            nose_x_rel = nose_x_offset / w
+            # left, middle, right
+            # 0.4, 0.5, 0.6
+            nose_x_rel_transf = 5*(nose_x_rel-0.4)
+            #print(nose_x_rel_transf)
+
+            e_y = (le_y+re_y)*0.5
+            h = ch_y - e_y
+            nose_y_offset = nose_y - e_y
+            nose_y_rel = nose_y_offset / h
+            # top, middle, bottom
+            # 0.25, 0.3, 0.35
+            nose_y_rel_transf = 10*(nose_y_rel-0.25)
+            #print(nose_y_rel_transf)
+
+            if nose_y_rel_transf > 0.99:
+                y = 1.0
+            elif nose_y_rel_transf < 0.01:
+                y = 0.0
+            else:
+                y = nose_y_rel_transf
+
+            if nose_x_rel_transf > 0.99:
+                x = 1.0
+            elif nose_x_rel_transf < 0.01:
+                x = 0.0
+            else:
+                x = nose_x_rel_transf
+
+            #print("(x,y)", x, y)
+            mouse_pos.append((x,y))
+            smooth_x = sum(pos[0] for pos in mouse_pos) / len(mouse_pos)
+            smooth_y = sum(pos[1] for pos in mouse_pos) / len(mouse_pos)
+            #print("1", x, y)
+            #print("2", smooth_x, smooth_y)
+            mouse.click(int(2880*smooth_x), int(1920*smooth_y))
+            #mouse.click(int(2880*x), int(1920*y))
+            #mouse.click(int(2880*x), int(1920*0.7))
+
 
             annotated_image = draw_landmarks_on_image(rgb_frame, detection_result)
             # Convert back to BGR for OpenCV display
