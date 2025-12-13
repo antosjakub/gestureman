@@ -5,6 +5,9 @@ from mediapipe.tasks.python import vision
 from mediapipe import solutions
 from mediapipe.framework.formats import landmark_pb2
 import numpy as np
+from collections import deque
+from libqtile.command.client import InteractiveCommandClient
+c = InteractiveCommandClient()
 
 # Create a gesture recognizer instance
 base_options = python.BaseOptions(model_asset_path='gesture_recognizer.task')
@@ -23,6 +26,15 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
+buffer_size = 7
+gesture_buffer = deque(maxlen=buffer_size)
+actions = {
+    "Pointing_Up": "move to screen 1",
+    "Victory": "move to screen 222"
+}
+last_full_gesture = ""
+
+
 # Open camera
 cap = cv2.VideoCapture(0)
 
@@ -31,6 +43,7 @@ print("Try gestures: Thumbs Up, Victory, Open Palm, Closed Fist, etc.")
 
 frame_count = 0
 
+i = 0
 while True:
     ret, frame = cap.read()
     
@@ -86,6 +99,26 @@ while True:
                 cv2.putText(frame, text, (10, y_offset), 
                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 y_offset += 40
+                i += 1
+                gesture = gesture.category_name
+                gesture_buffer.append(gesture)
+                percentage = sum(gesture == gb for gb in gesture_buffer) / buffer_size
+                if percentage >= 0.9:
+                    if gesture != last_full_gesture:
+                        last_full_gesture = gesture
+                        #print("new gesture:", gesture)
+                        if gesture == "Pointing_Up":
+                            print("P")
+                            c.group["1"].toscreen()
+                        elif gesture == "Victory":
+                            print("V")
+                            c.group["2"].toscreen()
+                    else:
+                        #print(i)
+                        pass
+                else:
+                    #print(i)
+                    pass
     
     # Display the frame
     cv2.imshow('Gesture Recognition', frame)
