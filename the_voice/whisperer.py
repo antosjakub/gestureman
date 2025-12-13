@@ -10,7 +10,7 @@ import os
 # Configuration
 SAMPLE_RATE = 16000
 CHANNELS = 1
-CHUNK_DURATION = 3  # Shorter chunks with faster-whisper
+CHUNK_DURATION = 5  # Shorter chunks with faster-whisper
 CHUNK_SIZE = SAMPLE_RATE * CHUNK_DURATION
 
 # Load model (much faster than standard Whisper)
